@@ -237,3 +237,104 @@ Parameter | Description
 --------- | -----------
 ID | The ID of the kitten to delete
 
+# API Test Case
+
+## Overview
+
+API test case is used to test if all the API endpoints are working correctly.
+
+`APITestCase` class is used to create the test cases. 
+The test cases files are named `test_api.py` and are located in `src/ui/<model>` of each model. 
+
+### How to Run
+
+> Sample command:
+
+```shell
+cd otsecurity/dashboard/otdashboard
+python manage.py test -p test_api.py
+```
+
+1. cd to your working directory
+2. python manage.py test -p test_api.py
+
+### Result
+
+> Sample result:
+
+```shell
+Ran 20 tests in 2.630s
+
+OK
+Destroying test database for alias 'default'
+```
+
+If all the test cases are passed, it will return "OK" and the number of tests ran. Otherwise it will return the number of errors
+and the detail of each error.
+
+### Error
+
+>Sample error:
+
+```shell
+FAIL: test_get_single_activity (src.ui.activity.test_api.NotificationTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "dashboard/otdashboard/src/ui/activity/test_api.py", line 48, in test_get_single_activity
+    self.assertEqual(response.status_code, status.HTTP_200_OK)
+AssertionError: 403 != 200
+
+```
+
+The test cases are run in parallel meaning that 1 error doesn't stop the whole process. 
+Errors from different test cases can be found in one test run. Error occurs when the expected outcome
+doesn't match the response. Sample error is shown on the right.
+
+## How It Works
+
+```python
+def setUp(self):         
+        User.objects.create_user(username='singtel',password='P@ssw0rd')
+        call_command('loaddata', 'fixtures/init/activitytype.json', verbosity=0)
+        Activity.objects.create(pk=1, time_created="1970-01-01T00:00:00", description='a', type=ActivityType.objects.get(pk=1), source='test', src_ip='123')
+
+def test_get_all_activities(self):
+        factory = APIRequestFactory()
+        user = User.objects.get(username='singtel')
+        request = factory.get('/activities')
+        content_type = ContentType.objects.get_for_model(Activity)
+        permission = Permission.objects.get(content_type=content_type, codename='view_activity')
+        user.user_permissions.add(permission)
+        permitteduser = User.objects.get(username='singtel')
+        force_authenticate(request, user=permitteduser)
+        response = ActivityList.as_view()(request)
+        activities = Activity.objects.all()
+        serializer = ActivitySerializer(activities, many=True)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data.get('results'), serializer.data)
+```
+This explains how the test cases work. 
+
+You can see a sample test case code block on the python tab.
+
+### setUp
+
+In the `setUp()` function, you can initialize objects to be used in the test cases. We need to create
+the User, model to be tested (for example, Activity), and necessary models to be used by the tested model 
+(for example, ActivityType as it is a foreignkey of Activity).
+
+The data can be generated either by `Model.object.create()` or `call_command('loaddata')`
+
+### test_function
+1. Request is made using `APIRequestFactory` class by specifying the method and endpoint.
+2. Get the user initialized in the setUp.
+3. Add the necessary permissions to the user.
+4. Authenticate the user with force_authenticate() function.
+6. Get the data to be compared with the response from the database.
+7. Compare the response data with the data from the database.
+
+<aside class="notice">
+For more information on Django API Test please visit <a href=http://www.django-rest-framework.org/api-guide/testing/>this</a>
+</aside>
+
+
